@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heatwave Analysis - Karun Basin</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            background: transparent;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 30px;
+            margin-bottom: 30px;
+            background: transparent;
+            border-radius: 20px;
+        }
+        
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 10px;
+            font-family: 'Times New Roman', Times, serif;
+            color: #333;
+        }
+        
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.8;
+            font-family: 'Times New Roman', Times, serif;
+            color: #555;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .stat-card h3 {
+            color: #555;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        
+        .stat-card .unit {
+            font-size: 0.8em;
+            color: #999;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        
+        .chart-container {
+            background: #f8f9fa;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        }
+        
+        .chart-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+            color: #333;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        
+        .charts-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 768px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+            .header h1 { font-size: 1.5em; }
+            .stat-card .value { font-size: 1.5em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="reportContainer">
+        <div class="header">
+            <h1>Appendix B - Heatwave Analysis</h1>
+            <p>Historical Period: 1985 to 2014 | Temperature Threshold: > 30°C | Minimum Duration: 3 days</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Heatwaves</h3>
+                <div class="value">94</div>
+                <div class="unit">Events</div>
+            </div>
+            <div class="stat-card">
+                <h3>Mean Duration</h3>
+                <div class="value">7.28</div>
+                <div class="unit">Days</div>
+            </div>
+            <div class="stat-card">
+                <h3>Maximum Duration</h3>
+                <div class="value">25</div>
+                <div class="unit">Days</div>
+            </div>
+            <div class="stat-card">
+                <h3>Maximum Temperature</h3>
+                <div class="value">32.85</div>
+                <div class="unit">°C</div>
+            </div>
+            <div class="stat-card">
+                <h3>Peak Year</h3>
+                <div class="value">2007</div>
+                <div class="unit">(9 events)</div>
+            </div>
+        </div>
+        
+        <div class="charts-row">
+            <div class="chart-container">
+                <div class="chart-title">Heatwave Duration Distribution</div>
+                <canvas id="durationHistogram" style="height: 300px; width: 100%;"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Annual Heatwave Frequency Trend</div>
+                <canvas id="yearlyTrend" style="height: 300px; width: 100%;"></canvas>
+            </div>
+        </div>
+        
+        <div class="charts-row">
+            <div class="chart-container">
+                <div class="chart-title">Heatwave Intensity (Temperature)</div>
+                <canvas id="intensityChart" style="height: 300px; width: 100%;"></canvas>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">Duration Distribution (Percentage)</div>
+                <canvas id="durationPie" style="height: 300px; width: 100%;"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Heatwave dataset
+        const heatwaves = [
+            {id:1, start:"1985-06-30", end:"1985-07-03", dur:4, maxTemp:31.18, meanTemp:30.76},
+            {id:2, start:"1985-07-06", end:"1985-07-12", dur:7, maxTemp:31.07, meanTemp:30.57},
+            {id:3, start:"1985-07-16", end:"1985-07-18", dur:3, maxTemp:30.65, meanTemp:30.32},
+            {id:4, start:"1985-07-21", end:"1985-08-09", dur:20, maxTemp:31.90, meanTemp:30.90},
+            {id:5, start:"1986-07-02", end:"1986-07-04", dur:3, maxTemp:31.19, meanTemp:30.81},
+            {id:6, start:"1986-07-11", end:"1986-07-16", dur:6, maxTemp:30.79, meanTemp:30.56},
+            {id:7, start:"1986-07-21", end:"1986-07-27", dur:7, maxTemp:31.03, meanTemp:30.68},
+            {id:8, start:"1986-07-29", end:"1986-08-04", dur:7, maxTemp:31.47, meanTemp:30.86},
+            {id:9, start:"1987-07-10", end:"1987-07-14", dur:5, maxTemp:31.09, meanTemp:30.52},
+            {id:10, start:"1987-08-04", end:"1987-08-10", dur:7, maxTemp:30.69, meanTemp:30.19},
+            {id:11, start:"1988-07-07", end:"1988-07-14", dur:8, maxTemp:31.39, meanTemp:30.82},
+            {id:12, start:"1988-07-18", end:"1988-07-20", dur:3, maxTemp:30.75, meanTemp:30.48},
+            {id:13, start:"1989-06-19", end:"1989-06-21", dur:3, maxTemp:30.78, meanTemp:30.63},
+            {id:14, start:"1989-07-04", end:"1989-07-08", dur:5, maxTemp:30.44, meanTemp:30.24},
+            {id:15, start:"1989-07-28", end:"1989-08-03", dur:7, maxTemp:31.44, meanTemp:30.98},
+            {id:16, start:"1990-07-02", end:"1990-07-04", dur:3, maxTemp:30.96, meanTemp:30.75},
+            {id:17, start:"1990-08-07", end:"1990-08-10", dur:4, maxTemp:30.70, meanTemp:30.40},
+            {id:18, start:"1990-08-13", end:"1990-08-15", dur:3, maxTemp:30.53, meanTemp:30.36},
+            {id:19, start:"1991-07-05", end:"1991-07-09", dur:5, maxTemp:31.27, meanTemp:30.67},
+            {id:20, start:"1991-07-18", end:"1991-08-06", dur:20, maxTemp:32.23, meanTemp:30.98},
+            {id:21, start:"1991-08-09", end:"1991-08-15", dur:7, maxTemp:31.27, meanTemp:30.62},
+            {id:22, start:"1992-06-27", end:"1992-06-29", dur:3, maxTemp:30.53, meanTemp:30.43},
+            {id:23, start:"1992-07-02", end:"1992-07-06", dur:5, maxTemp:31.56, meanTemp:31.11},
+            {id:24, start:"1992-07-10", end:"1992-07-13", dur:4, maxTemp:31.77, meanTemp:30.89},
+            {id:25, start:"1992-07-25", end:"1992-07-29", dur:5, maxTemp:30.85, meanTemp:30.43},
+            {id:26, start:"1992-08-03", end:"1992-08-05", dur:3, maxTemp:30.79, meanTemp:30.58},
+            {id:27, start:"1992-08-11", end:"1992-08-13", dur:3, maxTemp:30.19, meanTemp:30.12},
+            {id:28, start:"1993-07-10", end:"1993-07-17", dur:8, maxTemp:32.85, meanTemp:31.53},
+            {id:29, start:"1993-07-24", end:"1993-07-27", dur:4, maxTemp:31.40, meanTemp:30.92},
+            {id:30, start:"1993-07-31", end:"1993-08-09", dur:10, maxTemp:31.55, meanTemp:30.87},
+            {id:31, start:"1994-07-09", end:"1994-07-19", dur:11, maxTemp:31.95, meanTemp:30.89},
+            {id:32, start:"1994-07-24", end:"1994-07-27", dur:4, maxTemp:30.73, meanTemp:30.38},
+            {id:33, start:"1994-08-08", end:"1994-08-12", dur:5, maxTemp:31.09, meanTemp:30.56},
+            {id:34, start:"1995-07-06", end:"1995-07-22", dur:17, maxTemp:32.44, meanTemp:31.50},
+            {id:35, start:"1995-07-26", end:"1995-07-28", dur:3, maxTemp:32.56, meanTemp:31.73},
+            {id:36, start:"1995-08-08", end:"1995-08-13", dur:6, maxTemp:31.23, meanTemp:30.70},
+            {id:37, start:"1997-07-11", end:"1997-07-13", dur:3, maxTemp:30.82, meanTemp:30.58},
+            {id:38, start:"1997-08-03", end:"1997-08-05", dur:3, maxTemp:30.42, meanTemp:30.21},
+            {id:39, start:"1997-08-10", end:"1997-08-12", dur:3, maxTemp:30.51, meanTemp:30.29},
+            {id:40, start:"1998-07-04", end:"1998-07-17", dur:14, maxTemp:31.39, meanTemp:30.81},
+            {id:41, start:"1998-07-25", end:"1998-07-27", dur:3, maxTemp:30.67, meanTemp:30.45},
+            {id:42, start:"1998-07-29", end:"1998-08-01", dur:4, maxTemp:30.70, meanTemp:30.41},
+            {id:43, start:"1999-06-30", end:"1999-07-21", dur:22, maxTemp:32.04, meanTemp:30.89},
+            {id:44, start:"1999-07-26", end:"1999-08-02", dur:8, maxTemp:32.05, meanTemp:31.09},
+            {id:45, start:"2000-07-05", end:"2000-07-09", dur:5, maxTemp:30.85, meanTemp:30.46},
+            {id:46, start:"2001-07-09", end:"2001-07-14", dur:6, maxTemp:31.18, meanTemp:30.62},
+            {id:47, start:"2001-07-18", end:"2001-07-28", dur:11, maxTemp:32.40, meanTemp:31.58},
+            {id:48, start:"2002-07-06", end:"2002-07-14", dur:9, maxTemp:32.17, meanTemp:31.31},
+            {id:49, start:"2002-07-17", end:"2002-07-21", dur:5, maxTemp:31.64, meanTemp:30.85},
+            {id:50, start:"2002-07-24", end:"2002-07-27", dur:4, maxTemp:30.82, meanTemp:30.40},
+            {id:51, start:"2002-08-08", end:"2002-08-12", dur:5, maxTemp:30.80, meanTemp:30.68},
+            {id:52, start:"2003-07-06", end:"2003-07-15", dur:10, maxTemp:31.91, meanTemp:30.90},
+            {id:53, start:"2003-07-18", end:"2003-07-20", dur:3, maxTemp:30.84, meanTemp:30.64},
+            {id:54, start:"2003-07-27", end:"2003-07-29", dur:3, maxTemp:30.62, meanTemp:30.36},
+            {id:55, start:"2003-08-01", end:"2003-08-09", dur:9, maxTemp:30.68, meanTemp:30.40},
+            {id:56, start:"2003-08-20", end:"2003-08-22", dur:3, maxTemp:31.23, meanTemp:30.68},
+            {id:57, start:"2004-07-10", end:"2004-07-13", dur:4, maxTemp:31.72, meanTemp:31.18},
+            {id:58, start:"2004-07-15", end:"2004-07-31", dur:17, maxTemp:32.64, meanTemp:30.94},
+            {id:59, start:"2004-08-05", end:"2004-08-10", dur:6, maxTemp:31.47, meanTemp:30.90},
+            {id:60, start:"2004-08-14", end:"2004-08-20", dur:7, maxTemp:31.40, meanTemp:30.90},
+            {id:61, start:"2005-06-25", end:"2005-06-29", dur:5, maxTemp:31.21, meanTemp:30.77},
+            {id:62, start:"2005-07-16", end:"2005-07-21", dur:6, maxTemp:30.61, meanTemp:30.47},
+            {id:63, start:"2005-07-28", end:"2005-08-01", dur:5, maxTemp:31.34, meanTemp:30.91},
+            {id:64, start:"2005-08-08", end:"2005-08-13", dur:6, maxTemp:31.90, meanTemp:31.19},
+            {id:65, start:"2006-06-23", end:"2006-06-25", dur:3, maxTemp:31.09, meanTemp:30.87},
+            {id:66, start:"2006-07-31", end:"2006-08-03", dur:4, maxTemp:30.42, meanTemp:30.30},
+            {id:67, start:"2006-08-08", end:"2006-08-16", dur:9, maxTemp:31.27, meanTemp:30.43},
+            {id:68, start:"2007-07-05", end:"2007-07-29", dur:25, maxTemp:32.39, meanTemp:31.41},
+            {id:69, start:"2007-07-31", end:"2007-08-04", dur:5, maxTemp:30.82, meanTemp:30.58},
+            {id:70, start:"2007-08-07", end:"2007-08-10", dur:4, maxTemp:31.40, meanTemp:30.77},
+            {id:71, start:"2007-08-18", end:"2007-08-21", dur:4, maxTemp:30.94, meanTemp:30.79},
+            {id:72, start:"2008-07-24", end:"2008-07-28", dur:5, maxTemp:30.45, meanTemp:30.27},
+            {id:73, start:"2008-08-03", end:"2008-08-07", dur:5, maxTemp:31.99, meanTemp:31.13},
+            {id:74, start:"2008-08-11", end:"2008-08-15", dur:5, maxTemp:30.72, meanTemp:30.53},
+            {id:75, start:"2009-06-23", end:"2009-06-25", dur:3, maxTemp:30.38, meanTemp:30.27},
+            {id:76, start:"2009-07-05", end:"2009-07-12", dur:8, maxTemp:31.30, meanTemp:30.58},
+            {id:77, start:"2009-07-14", end:"2009-07-27", dur:14, maxTemp:31.43, meanTemp:30.82},
+            {id:78, start:"2009-08-01", end:"2009-08-10", dur:10, maxTemp:31.27, meanTemp:30.80},
+            {id:79, start:"2010-06-15", end:"2010-06-18", dur:4, maxTemp:30.50, meanTemp:30.37},
+            {id:80, start:"2010-07-18", end:"2010-07-21", dur:4, maxTemp:31.36, meanTemp:30.91},
+            {id:81, start:"2010-07-30", end:"2010-08-11", dur:13, maxTemp:31.41, meanTemp:30.85},
+            {id:82, start:"2011-06-18", end:"2011-07-03", dur:16, maxTemp:31.54, meanTemp:30.77},
+            {id:83, start:"2011-07-07", end:"2011-07-21", dur:15, maxTemp:31.58, meanTemp:30.65},
+            {id:84, start:"2011-07-28", end:"2011-08-08", dur:12, maxTemp:31.30, meanTemp:30.62},
+            {id:85, start:"2011-08-19", end:"2011-08-21", dur:3, maxTemp:30.79, meanTemp:30.64},
+            {id:86, start:"2012-06-18", end:"2012-06-21", dur:4, maxTemp:30.85, meanTemp:30.53},
+            {id:87, start:"2012-06-26", end:"2012-07-05", dur:10, maxTemp:32.57, meanTemp:31.41},
+            {id:88, start:"2012-07-10", end:"2012-07-24", dur:15, maxTemp:32.69, meanTemp:31.36},
+            {id:89, start:"2013-06-29", end:"2013-07-03", dur:5, maxTemp:30.60, meanTemp:30.39},
+            {id:90, start:"2013-07-08", end:"2013-07-11", dur:4, maxTemp:31.40, meanTemp:30.79},
+            {id:91, start:"2013-07-14", end:"2013-07-19", dur:6, maxTemp:31.43, meanTemp:30.76},
+            {id:92, start:"2013-07-24", end:"2013-08-12", dur:20, maxTemp:31.58, meanTemp:30.88},
+            {id:93, start:"2014-06-23", end:"2014-07-03", dur:11, maxTemp:31.60, meanTemp:30.99},
+            {id:94, start:"2014-07-08", end:"2014-07-28", dur:21, maxTemp:32.34, meanTemp:31.33}
+        ];
+        
+        // Duration distribution groups
+        const durationGroups = { "3-5 days": 0, "6-10 days": 0, "11-15 days": 0, "16-20 days": 0, "21-25 days": 0 };
+        heatwaves.forEach(hw => {
+            if (hw.dur <= 5) durationGroups["3-5 days"]++;
+            else if (hw.dur <= 10) durationGroups["6-10 days"]++;
+            else if (hw.dur <= 15) durationGroups["11-15 days"]++;
+            else if (hw.dur <= 20) durationGroups["16-20 days"]++;
+            else durationGroups["21-25 days"]++;
+        });
+        
+        // Yearly count
+        const yearlyCount = {};
+        heatwaves.forEach(hw => {
+            const year = hw.start.split('-')[0];
+            yearlyCount[year] = (yearlyCount[year] || 0) + 1;
+        });
+        const years = Object.keys(yearlyCount).sort();
+        const counts = years.map(y => yearlyCount[y]);
+        
+        // Histogram data
+        const durations = heatwaves.map(h => h.dur);
+        const bins = [2, 5, 8, 11, 14, 17, 20, 23, 26];
+        const histData = new Array(bins.length-1).fill(0);
+        durations.forEach(d => {
+            for (let i = 0; i < bins.length-1; i++) {
+                if (d > bins[i] && d <= bins[i+1]) { histData[i]++; break; }
+                if (i === bins.length-2 && d > bins[i+1]) histData[i]++;
+            }
+        });
+        
+        // Duration Histogram Chart
+        new Chart(document.getElementById('durationHistogram'), {
+            type: 'bar',
+            data: {
+                labels: ['3-5', '6-8', '9-11', '12-14', '15-17', '18-20', '21-23', '24-26'],
+                datasets: [{
+                    label: 'Number of Heatwaves',
+                    data: histData,
+                    backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                    borderColor: '#667eea',
+                    borderWidth: 1
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: true, 
+                plugins: { 
+                    legend: { position: 'top', labels: { font: { family: 'Times New Roman', size: 12 } } } 
+                },
+                scales: {
+                    x: { ticks: { font: { family: 'Times New Roman', size: 11 } } },
+                    y: { ticks: { font: { family: 'Times New Roman', size: 11 } } }
+                }
+            }
+        });
+        
+        // Yearly Trend Chart
+        new Chart(document.getElementById('yearlyTrend'), {
+            type: 'line',
+            data: {
+                labels: years,
+                datasets: [{
+                    label: 'Number of Heatwaves per Year',
+                    data: counts,
+                    borderColor: '#e74c3c',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#e74c3c'
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: true, 
+                plugins: { 
+                    legend: { position: 'top', labels: { font: { family: 'Times New Roman', size: 12 } } } 
+                },
+                scales: {
+                    x: { ticks: { font: { family: 'Times New Roman', size: 11 }, rotation: 45 } },
+                    y: { ticks: { font: { family: 'Times New Roman', size: 11 } } }
+                }
+            }
+        });
+        
+        // Intensity Chart
+        const maxTemps = heatwaves.map(h => h.maxTemp);
+        const meanTemps = heatwaves.map(h => h.meanTemp);
+        new Chart(document.getElementById('intensityChart'), {
+            type: 'line',
+            data: {
+                labels: heatwaves.map(h => h.id),
+                datasets: [
+                    { label: 'Maximum Temperature', data: maxTemps, borderColor: '#e74c3c', backgroundColor: 'rgba(231, 76, 60, 0.1)', fill: false, tension: 0.2, pointRadius: 2 },
+                    { label: 'Mean Temperature', data: meanTemps, borderColor: '#3498db', backgroundColor: 'rgba(52, 152, 219, 0.1)', fill: false, tension: 0.2, pointRadius: 2 }
+                ]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: true, 
+                plugins: { 
+                    legend: { position: 'top', labels: { font: { family: 'Times New Roman', size: 12 } } } 
+                },
+                scales: {
+                    x: { title: { display: true, text: 'Heatwave Event ID', font: { family: 'Times New Roman', size: 12 } }, ticks: { font: { family: 'Times New Roman', size: 9 } } },
+                    y: { title: { display: true, text: 'Temperature (°C)', font: { family: 'Times New Roman', size: 12 } }, ticks: { font: { family: 'Times New Roman', size: 11 } } }
+                }
+            }
+        });
+        
+        // Pie Chart
+        new Chart(document.getElementById('durationPie'), {
+            type: 'pie',
+            data: {
+                labels: Object.keys(durationGroups),
+                datasets: [{
+                    data: Object.values(durationGroups),
+                    backgroundColor: ['#2ecc71', '#f39c12', '#e74c3c', '#9b59b6', '#c0392b']
+                }]
+            },
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: true, 
+                plugins: { 
+                    legend: { position: 'top', labels: { font: { family: 'Times New Roman', size: 12 } } },
+                    tooltip: { bodyFont: { family: 'Times New Roman' } }
+                } 
+            }
+        });
+        
+        // Automatic TIFF download with 300 DPI after page load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                downloadHighResolutionTIFF();
+            }, 2000);
+        });
+        
+        // High resolution TIFF download function (300 DPI)
+        async function downloadHighResolutionTIFF() {
+            const element = document.getElementById('reportContainer');
+            
+            try {
+                // Get element dimensions
+                const rect = element.getBoundingClientRect();
+                const targetWidth = rect.width;
+                const targetHeight = rect.height;
+                
+                // Calculate scale for 300 DPI (assuming screen is ~96 DPI)
+                // 300 DPI / 96 DPI = 3.125 scale factor
+                const scale = 3.125;
+                
+                const canvas = await html2canvas(element, {
+                    scale: scale,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true,
+                    windowWidth: element.scrollWidth,
+                    windowHeight: element.scrollHeight
+                });
+                
+                // Convert canvas to blob and download as PNG (high quality)
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'Heatwave_Analysis_Karun_Basin_300dpi.png';
+                    link.click();
+                    URL.revokeObjectURL(url);
+                }, 'image/png', 1.0);
+                
+            } catch (error) {
+                console.error('Error generating high-res image:', error);
+            }
+        }
+    </script>
+</body>
+</html>
